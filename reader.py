@@ -1,3 +1,4 @@
+import math
 import pygame
 # pylint: disable=no-member
 
@@ -13,6 +14,10 @@ def dms_to_decimal(coord):
     return d + m / 60 + s / 3600
 
 
+def scale(value, min_value, range_value, screen_size):
+    return ((value - min_value) / range_value) * screen_size
+
+
 class Reader:
     def __init__(self, width, height, screen):
         self.width, self.height = width, height
@@ -26,6 +31,7 @@ class Reader:
         self.parse_runway("runway.txt")
         self.parse_geo("geo.txt")
 
+        self.scale_coords()
         self.draw_screen()
 
     def parse_regions(self, filename):
@@ -60,7 +66,6 @@ class Reader:
         lines = [line.split(" ") for line in lines if line[0] != ";"]
 
         for line in lines:
-            print(line)
             self.labels[line[0][1:-1]] = (dms_to_decimal(line[1]),
                                           dms_to_decimal(line[2]))
             self.coords.append((dms_to_decimal(line[1]),
@@ -87,24 +92,48 @@ class Reader:
             self.coords.append(end)
             self.geo.append((start, end))
 
+    def scale_coords(self):
+        min_x = min(coord[0] for coord in self.coords)
+        max_x = max(coord[0] for coord in self.coords)
+        min_y = min(coord[1] for coord in self.coords)
+        max_y = max(coord[1] for coord in self.coords)
+
+        range_x = max_x - min_x
+        range_y = max_y - min_y
+
+        print(range_x, range_y)
+
     def draw_screen(self):
-        min_coord = min(self.coords, key=lambda coord: (coord[0], coord[1]))
-        max_coord = max(self.coords, key=lambda coord: (coord[0], coord[1]))
+        theta = math.radians(47)  # change to proc
+        min_lat = min_lon = float('inf')
+        max_lat = max_lon = float('-inf')
 
-        # Calculate the scale
-        x_range = max_coord[0] - min_coord[0]
-        y_range = max_coord[1] - min_coord[1]
+        for lat, lon in self.coords:
+            min_lat = min(min_lat, lat)
+            min_lon = min(min_lon, lon)
+            max_lat = max(max_lat, lat)
+            max_lon = max(max_lon, lon)
 
-        # Assuming width and height are the dimensions of your screen
-        x_scale = (self.width - 2*pad) / x_range
-        y_scale = (self.height - 2*pad) / y_range
+        rotated_coordinates = []
+        for lat, lon in self.coords:
+            x = ((lon - min_lon) / (max_lon - min_lon)) * width
+            # Subtract from height because Pygame's y increases downwards
+            y = height - ((lat - min_lat) / (max_lat - min_lat)) * height
 
-        for label, coord in self.labels.items():
-            lab = font.render(label, True, (255, 255, 255))
-            # Subtract the minimum and multiply by the scale factor
-            x, y = (coord[0] - min_coord[0]) * x_scale + \
-                pad, (coord[1] - min_coord[1]) * y_scale + pad
-            screen.blit(lab, (x, y))
+            # Calculate the center of the coordinate system
+            cx, cy = width / 2, height / 2
+
+            # Translate coordinates to origin
+            x, y = x - cx, y - cy
+
+            # Rotate coordinates
+            x_rot = x * math.cos(theta) - y * math.sin(theta)
+            y_rot = x * math.sin(theta) + y * math.cos(theta)
+
+            # Translate coordinates back
+            x_rot, y_rot = x_rot + cx, y_rot + cy
+
+            rotated_coordinates.append((x_rot, y_rot))
 
 
 # Set the dimensions of the window
