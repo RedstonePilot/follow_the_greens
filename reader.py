@@ -23,6 +23,7 @@ class Reader:
 
         self.parse_lables("lables.txt")
         self.parse_regions("regions.txt")
+        self.parse_runway("runway.txt")
 
     def parse_regions(self, filename):
         with open(filename, "r") as in_file:
@@ -30,25 +31,24 @@ class Reader:
         data = [d for d in data if d]
         region = []
         for d in data:
-            print("try", d)
             if d[0] == ";":  # new region
                 self.regions.append(region)
                 region = []
 
             elif d[-1].isnumeric():  # line contains a coord string
                 d = d.split(" ")
-                print(len(d))
                 if len(d) == 3:
                     region.append(
                         (dms_to_decimal(d[1]), dms_to_decimal(d[2])))
                     self.coords.append(
                         (dms_to_decimal(d[1]), dms_to_decimal(d[2])))
                 else:
-                    print(d)
                     region.append(
                         (dms_to_decimal(d[0]), dms_to_decimal(d[1])))
-
-        return self.regions
+                    self.coords.append(
+                        (dms_to_decimal(d[0]), dms_to_decimal(d[1])))
+        self.regions.append(region)
+        # return self.regions
 
     def parse_lables(self, filename):
         self.lables = {}
@@ -59,6 +59,21 @@ class Reader:
         for label in lables:
             self.lables[label[0][1:-1]] = (dms_to_decimal(label[1]),
                                            dms_to_decimal(label[2]))
+            self.coords.append((dms_to_decimal(label[1]),
+                                dms_to_decimal(label[2])))
+
+    def parse_runway(self, filename):
+        with open(filename, "r")as in_file:
+            runway = in_file.readline().strip().split(" ")
+        runway = [r for r in runway if r]
+        print(runway)
+        self.runway_heading = runway[2]
+        start = (dms_to_decimal(runway[4]), dms_to_decimal(runway[5]))
+        end = (dms_to_decimal(runway[6]), dms_to_decimal(runway[7]))
+        self.runway_def = (start, end)
+
+    def parse_geo(self,filename):
+        
 
 
 # Set the dimensions of the window
